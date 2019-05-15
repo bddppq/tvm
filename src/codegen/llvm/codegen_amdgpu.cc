@@ -42,6 +42,7 @@ class CodeGenAMDGPU : public CodeGenLLVM {
   void AddFunction(const LoweredFunc& f) final {
     // add function as void return value
     CodeGenLLVM::AddFunctionInternal(f, true);
+    function_->addFnAttr("amdgpu-num-vgpr", "64");
     function_->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
   }
 
@@ -181,6 +182,10 @@ runtime::Module BuildAMDGPU(Array<LoweredFunc> funcs, std::string target) {
   std::ostringstream config;
   config << "-mtriple=amdgcn-amd-amdhsa-hcc -mcpu=gfx"
          << DetectROCMComputeVersion(target)
+      // llvm 9 by default generates code object v3
+#if TVM_LLVM_VERSION >= 90
+         << " -mattr=-code-object-v3"
+#endif
          << target.substr(4, target.length() - 4);
   std::unique_ptr<llvm::TargetMachine> tm = GetLLVMTargetMachine(config.str());
   std::unique_ptr<CodeGenAMDGPU> cg(new CodeGenAMDGPU());
